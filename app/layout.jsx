@@ -1,5 +1,5 @@
 import "./globals.css";
-import { SessionProviderWrapper } from "./SessionProviderWrapper.jsx";
+import { SessionProviderWrapper } from "./SessionProviderWrapper";
 
 export const metadata = {
   title: "Inbox Zero Assistant",
