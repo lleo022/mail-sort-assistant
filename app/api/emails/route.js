@@ -11,8 +11,12 @@ export async function GET(request) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+// TODO:
+  // 1. pull unread emails
+  // 2. let ai do the work
+  // 3. sort by importance
   try {
-    // 1. Pull unread emails from Gmail
+    // 1.
     const { searchParams } = new URL(request.url);
     const count = Math.min(parseInt(searchParams.get("count") || "10"), 20);
     const emails = await fetchUnreadEmails(session.accessToken, count);
@@ -21,10 +25,10 @@ export async function GET(request) {
       return Response.json({ emails: [], message: "No unread emails found!" });
     }
 
-    // 2. Run AI analysis on all of them
+    // 2.
     const sorted = await triageEmails(emails);
 
-    // 3. Sort: action_needed first, then fyi, promotional, can_delete
+    // 3.
     const order = ["action_needed", "fyi", "promotional", "can_delete"];
     sorted.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
 

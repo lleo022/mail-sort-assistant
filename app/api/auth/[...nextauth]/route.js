@@ -8,23 +8,21 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
-          // Request Gmail scopes during OAuth
           scope: [
             "openid",
             "email",
             "profile",
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.send",
-            "https://www.googleapis.com/auth/gmail.modify", // needed for archive
+            "https://www.googleapis.com/auth/gmail.modify",
           ].join(" "),
-          access_type: "offline", // get refresh token
-          prompt: "consent",      // always show consent to ensure we get refresh token
+          access_type: "offline",
+          prompt: "consent",
         },
       },
     }),
   ],
   callbacks: {
-    // Attach the access token to the session so we can use it server-side
     async jwt({ token, account }) {
       if (account) {
         token.accessToken = account.access_token;

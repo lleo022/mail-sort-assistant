@@ -16,7 +16,7 @@ export default function Home() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkConfirmStep, setBulkConfirmStep] = useState(0); // 0 = idle, 1 = confirm
   const [retryLoading, setRetryLoading] = useState(false);
-  // Track which emails are still visible (not actioned)
+  // track which emails are still visible (not actioned)
   const [dismissedIds, setDismissedIds] = useState(new Set());
 
 
@@ -73,7 +73,7 @@ export default function Home() {
       return;
     }
 
-    // Step 2 confirmed — actually do it
+    // Step 2 confirmed -> actually do it
     setBulkLoading(true);
     setBulkConfirmStep(0);
 
