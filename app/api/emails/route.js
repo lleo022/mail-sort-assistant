@@ -13,22 +13,24 @@ export async function GET(request) {
 
   try {
     // 1. Pull unread emails from Gmail
-    const emails = await fetchUnreadEmails(session.accessToken, 20);
+    const { searchParams } = new URL(request.url);
+    const count = Math.min(parseInt(searchParams.get("count") || "10"), 20);
+    const emails = await fetchUnreadEmails(session.accessToken, count);
 
     if (emails.length === 0) {
       return Response.json({ emails: [], message: "No unread emails found!" });
     }
 
-    // 2. Run AI triage on all of them
-    const triaged = await triageEmails(emails);
+    // 2. Run AI analysis on all of them
+    const sorted = await triageEmails(emails);
 
     // 3. Sort: action_needed first, then fyi, promotional, can_delete
     const order = ["action_needed", "fyi", "promotional", "can_delete"];
-    triaged.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
+    sorted.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
 
-    return Response.json({ emails: triaged });
+    return Response.json({ emails: sorted });
   } catch (err) {
-    console.error("Error fetching/triaging emails:", err);
+    console.error("Error fetching/sorting emails:", err);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }

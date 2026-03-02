@@ -12,20 +12,43 @@ export default function Home() {
   const [processed, setProcessed] = useState(0);
   const [error, setError] = useState(null);
   const [fetched, setFetched] = useState(false);
+  const [emailCount, setEmailCount] = useState(10);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkConfirmStep, setBulkConfirmStep] = useState(0); // 0 = idle, 1 = confirm
+  const [retryLoading, setRetryLoading] = useState(false);
+  // Track which emails are still visible (not actioned)
+  const [dismissedIds, setDismissedIds] = useState(new Set());
 
-  async function fetchAndTriage() {
+
+  async function fetchAndTriage(markCurrentAsRead = false) {
+    // If retrying, first mark all currently listed emails as read
+    if (markCurrentAsRead && emails.length > 0) {
+      setRetryLoading(true);
+      const ids = emails.map((e) => e.id);
+      try {
+        await fetch("/api/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "bulkArchive", messageIds: ids }),
+        });
+      } catch (e) {
+        console.error("Failed to mark emails as read before retry:", e);
+      }
+      setRetryLoading(false);
+    }
+
     setLoading(true);
     setError(null);
     setEmails([]);
     setProcessed(0);
+    setDismissedIds(new Set());
     setFetched(false);
+    setBulkConfirmStep(0);
 
     try {
-      const res = await fetch("/api/emails");
+      const res = await fetch(`/api/emails?count=${emailCount}`);
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || "Something went wrong");
-
       setEmails(data.emails || []);
       setFetched(true);
     } catch (e) {
@@ -35,9 +58,58 @@ export default function Home() {
     }
   }
 
+
   function handleAction(emailId) {
+    setDismissedIds((prev) => new Set([...prev, emailId]));
     setProcessed((p) => p + 1);
   }
+
+
+  // Perform all actions: archives everything except action_needed emails
+  // Does not auto-send replies
+  async function handlePerformAll() {
+    if (bulkConfirmStep === 0) {
+      setBulkConfirmStep(1);
+      return;
+    }
+
+    // Step 2 confirmed — actually do it
+    setBulkLoading(true);
+    setBulkConfirmStep(0);
+
+    const toArchive = emails
+      .filter((e) => !dismissedIds.has(e.id) && e.category !== "action_needed")
+      .map((e) => e.id);
+
+    try {
+      if (toArchive.length > 0) {
+        const res = await fetch("/api/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "bulkArchive", messageIds: toArchive }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+      }
+
+      // Dismiss all non-action-needed cards from the UI
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        toArchive.forEach((id) => next.add(id));
+        return next;
+      });
+      setProcessed((p) => p + toArchive.length);
+    } catch (e) {
+      alert("Bulk action failed: " + e.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  function cancelBulk() {
+    setBulkConfirmStep(0);
+  }
+
 
   const total = emails.length;
   const remaining = total - processed;
@@ -48,10 +120,22 @@ export default function Home() {
     return acc;
   }, {});
 
+  // Emails still visible (not dismissed)
+  const visibleEmails = emails.filter((e) => !dismissedIds.has(e.id));
+  const nonActionNeededRemaining = visibleEmails.filter(
+    (e) => e.category !== "action_needed"
+  ).length;
+
+  const bulkButtonLabel = () => {
+    if (bulkLoading) return "Processing...";
+    if (bulkConfirmStep === 1) return "⚠️ Are you sure? This will archive " + nonActionNeededRemaining + " emails";
+    return "Perform All Actions";
+  };
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-zinc-600 text-sm tracking-widest">LOADING...</div>
+        <div className="text-zinc-400 text-sm tracking-widest">LOADING...</div>
       </div>
     );
   }
@@ -60,10 +144,10 @@ export default function Home() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-4">
         <div className="text-center">
-          <div className="text-zinc-600 text-xs tracking-[0.3em] uppercase mb-3">Anthropic Hackathon</div>
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Inbox Zero</h1>
+          <div className="text-zinc-500 text-xs tracking-[0.3em] uppercase mb-3">Hack on the Hill XIII</div>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Inbox: Zero</h1>
           <p className="text-zinc-400 text-sm max-w-sm mx-auto leading-relaxed">
-            Connect your Gmail. AI triages everything, drafts your replies. You just hit send.
+            Connect your Gmail. AI sorts everything and drafts your replies. You just hit send.
           </p>
         </div>
 
@@ -80,8 +164,8 @@ export default function Home() {
           Sign in with Google
         </button>
 
-        <p className="text-zinc-700 text-xs text-center max-w-xs">
-          Requires access to read and send Gmail. Your emails are never stored — processed in memory only.
+        <p className="text-zinc-500 text-xs text-center max-w-xs">
+          Requires access to read and send Gmail. Your emails are never stored. Everything is processed in memory only.
         </p>
       </div>
     );
@@ -92,34 +176,55 @@ export default function Home() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Inbox Zero</h1>
-          <p className="text-zinc-500 text-xs mt-0.5">{session.user?.email}</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Inbox: Zero</h1>
+          <p className="text-zinc-400 text-xs mt-0.5">{session.user?.email}</p>
         </div>
         <button
           onClick={() => signOut()}
-          className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+          className="text-zinc-400 hover:text-zinc-400 text-xs transition-colors"
         >
           Sign out
         </button>
       </div>
 
-      {/* Fetch Button */}
+      {/* Fetch Controls */}
       {!fetched && (
         <div className="text-center py-16">
-          <div className="text-zinc-600 text-6xl mb-6">📬</div>
-          <p className="text-zinc-400 text-sm mb-6">
-            Ready to triage your last 20 unread emails.
+          <div className="text-zinc-500 text-6xl mb-6">📬</div>
+          <p className="text-zinc-300 text-sm mb-6">
+            How many emails do you want to analyze?
           </p>
+
+          {/* Email count selector */}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <span className="text-zinc-400 text-sm">Emails to fetch:</span>
+            <div className="flex items-center gap-2">
+              {[3, 5, 10, 15, 20].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setEmailCount(n)}
+                  className={`w-10 h-10 rounded-lg text-sm font-semibold transition-colors ${
+                    emailCount === n
+                      ? "bg-white text-zinc-900"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
-            onClick={fetchAndTriage}
+            onClick={() => fetchAndTriage(false)}
             disabled={loading}
             className="bg-white text-zinc-900 font-bold text-sm px-8 py-3 rounded-xl hover:bg-zinc-200 disabled:opacity-50 transition-colors"
           >
-            {loading ? "Analyzing..." : "Fetch & Triage Inbox"}
+            {loading ? "Analyzing..." : `Fetch & Analyze ${emailCount} Emails`}
           </button>
           {loading && (
-            <p className="text-zinc-600 text-xs mt-3 animate-pulse">
-              Reading emails + running AI triage — this takes ~10-15 seconds...
+            <p className="text-zinc-400 text-xs mt-3 animate-pulse">
+              Reading emails + running AI analysis — this takes ~10-15 seconds...
             </p>
           )}
         </div>
@@ -131,31 +236,67 @@ export default function Home() {
         </div>
       )}
 
-      {/* Progress Bar */}
+      {/* Progress Bar + Bulk Actions */}
       {fetched && total > 0 && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex gap-4 text-xs text-zinc-500">
+            <div className="flex gap-4 text-xs text-zinc-400">
               <span>⚡ {counts.action_needed} action</span>
               <span>📋 {counts.fyi} fyi</span>
               <span>📣 {counts.promotional} promo</span>
               <span>🗑 {counts.can_delete} delete</span>
             </div>
-            <span className="text-zinc-500 text-xs">{remaining} left</span>
+            <span className="text-zinc-400 text-xs">{remaining} left</span>
           </div>
-          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-4">
             <div
               className="h-full bg-emerald-500 rounded-full transition-all duration-500"
               style={{ width: `${percent}%` }}
             />
           </div>
+
+          {/* Perform All Actions button — only show if there are non-action-needed emails left */}
+          {nonActionNeededRemaining > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={handlePerformAll}
+                disabled={bulkLoading}
+                className={`flex-1 text-xs font-semibold py-2.5 px-4 rounded-lg transition-colors ${
+                  bulkConfirmStep === 0
+                    ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-200"
+                    : bulkConfirmStep === 1
+                    ? "bg-amber-700 hover:bg-amber-600 text-white"
+                    : "bg-red-700 hover:bg-red-600 text-white"
+                } disabled:opacity-50`}
+              >
+                {bulkButtonLabel()}
+              </button>
+              {bulkConfirmStep > 0 && (
+                <button
+                  onClick={cancelBulk}
+                  className="px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          )}
+
+          {bulkConfirmStep > 0 && (
+            <p className="text-zinc-400 text-xs mt-2 text-center">
+              {bulkConfirmStep === 1
+                ? `This will archive ${nonActionNeededRemaining} emails (FYI, Promotional, Delete). Action Needed emails will not be touched.`
+                : "Click the button one more time to confirm. This cannot be undone."}
+            </p>
+          )}
+
           {remaining === 0 && (
             <div className="text-center mt-8">
               <div className="text-4xl mb-2">🎉</div>
               <p className="text-emerald-400 font-semibold">Inbox Zero achieved!</p>
               <button
-                onClick={() => { setFetched(false); setEmails([]); setProcessed(0); }}
-                className="text-zinc-500 hover:text-zinc-300 text-xs mt-3 underline"
+                onClick={() => { setFetched(false); setEmails([]); setProcessed(0); setDismissedIds(new Set()); }}
+                className="text-zinc-400 hover:text-zinc-200 text-xs mt-3 underline"
               >
                 Start over
               </button>
@@ -165,16 +306,32 @@ export default function Home() {
       )}
 
       {/* Email Cards */}
-      {emails.map((email, i) => (
-        <div key={email.id} className={`animate-fade-in-up`} style={{ animationDelay: `${i * 0.04}s`, opacity: 0 }}>
+      {visibleEmails.map((email, i) => (
+        <div key={email.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 0.04}s`, opacity: 0 }}>
           <EmailCard email={email} onAction={handleAction} />
         </div>
       ))}
 
       {fetched && emails.length === 0 && (
-        <div className="text-center py-16 text-zinc-600">
+        <div className="text-center py-16 text-zinc-400">
           <div className="text-5xl mb-4">✨</div>
           <p>No unread emails found. Already at inbox zero!</p>
+        </div>
+      )}
+
+      {/* Bottom: Mark all as read and retry */}
+      {fetched && emails.length > 0 && (
+        <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
+          <p className="text-zinc-400 text-xs mb-3">
+            Done with this batch? Mark all listed emails as read and fetch the next set.
+          </p>
+          <button
+            onClick={() => fetchAndTriage(true)}
+            disabled={retryLoading || loading}
+            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 text-xs font-semibold py-2.5 px-6 rounded-lg transition-colors"
+          >
+            {retryLoading ? "Marking as read..." : "Mark All as Read & Retry"}
+          </button>
         </div>
       )}
     </div>

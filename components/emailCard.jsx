@@ -68,14 +68,12 @@ export default function EmailCard({ email, onAction }) {
   }
 
   return (
-    <div
-      className={`rounded-xl border ${style.bg} ${style.border} p-5 mb-3 transition-all duration-300`}
-    >
+    <div className={`rounded-xl border ${style.bg} ${style.border} p-5 mb-3 transition-all duration-300`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
           <p className="text-white font-semibold text-sm truncate">{email.subject}</p>
-          <p className="text-zinc-400 text-xs mt-0.5 truncate">{email.from}</p>
+          <p className="text-zinc-300 text-xs mt-0.5 truncate">{email.from}</p>
         </div>
         <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${style.badge}`}>
           {style.label}
@@ -83,17 +81,17 @@ export default function EmailCard({ email, onAction }) {
       </div>
 
       {/* Snippet */}
-      <p className="text-zinc-400 text-xs leading-relaxed mb-1 line-clamp-2">{email.snippet}</p>
-      <p className="text-zinc-600 text-xs italic mb-3">{email.reason}</p>
+      <p className="text-zinc-300 text-xs leading-relaxed mb-1 line-clamp-2">{email.snippet}</p>
+      <p className="text-zinc-400 text-xs italic mb-3">{email.reason}</p>
 
       {/* Draft reply (for action_needed) */}
       {email.category === "action_needed" && (
         <div className="mt-3 mb-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-zinc-500 text-xs uppercase tracking-widest">Draft Reply</span>
+            <span className="text-zinc-400 text-xs uppercase tracking-widest">Draft Reply</span>
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className="text-xs text-zinc-400 hover:text-white transition-colors"
+              className="text-xs text-zinc-300 hover:text-white transition-colors"
             >
               {isEditing ? "Done editing" : "Edit"}
             </button>
@@ -102,11 +100,11 @@ export default function EmailCard({ email, onAction }) {
             <textarea
               value={editedReply}
               onChange={(e) => setEditedReply(e.target.value)}
-              className="w-full bg-black/40 border border-zinc-700 rounded-lg p-3 text-zinc-300 text-sm resize-none focus:outline-none focus:border-zinc-500 transition-colors"
+              className="w-full bg-black/40 border border-zinc-700 rounded-lg p-3 text-zinc-200 text-sm resize-none focus:outline-none focus:border-zinc-500 transition-colors"
               rows={4}
             />
           ) : (
-            <p className="text-zinc-300 text-sm bg-black/30 rounded-lg p-3 border border-zinc-800 whitespace-pre-wrap">
+            <p className="text-zinc-200 text-sm bg-black/30 rounded-lg p-3 border border-zinc-700 whitespace-pre-wrap">
               {editedReply || "No draft available."}
             </p>
           )}
@@ -114,7 +112,7 @@ export default function EmailCard({ email, onAction }) {
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-2 mt-3 flex-wrap">
         {email.category === "action_needed" && (
           <button
             onClick={() => handleAction("send")}
@@ -127,18 +125,17 @@ export default function EmailCard({ email, onAction }) {
         <button
           onClick={() => handleAction("archive")}
           disabled={!!loading}
-          className="flex-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
+          className="flex-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-zinc-200 text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
         >
           {loading === "archive" ? "Archiving..." : "Archive"}
         </button>
-        {(email.category === "can_delete" || email.category === "promotional") && (
-          <button
-            onClick={() => setDone(true)}
-            className="px-3 py-2 text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
-          >
-            Skip
-          </button>
-        )}
+        <button
+          onClick={() => handleAction("markAsRead")}
+          disabled={!!loading}
+          className="flex-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
+        >
+          {loading === "markAsRead" ? "Marking..." : "Mark as Read"}
+        </button>
       </div>
     </div>
   );
