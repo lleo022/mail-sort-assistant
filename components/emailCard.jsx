@@ -37,6 +37,8 @@ export default function EmailCard({ email, onAction }) {
 
   const style = CATEGORY_STYLES[email.category] || CATEGORY_STYLES.fyi;
 
+  const hasBody = email.body && email.body.trim().length > 0; 
+
   if (done) return null;
 
   async function handleAction(action) {

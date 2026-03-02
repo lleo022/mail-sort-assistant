@@ -291,14 +291,29 @@ export default function Home() {
           )}
 
           {remaining === 0 && (
-            <div className="text-center mt-8">
-              <div className="text-4xl mb-2">🎉</div>
-              <p className="text-emerald-400 font-semibold">Inbox Zero achieved!</p>
+            <div className="mt-8 rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-6 text-center">
+              <p className="text-emerald-400 text-xs tracking-[0.3em] uppercase mb-4">✓ Mission Complete</p>
+              <div className="flex justify-center gap-8 mb-6">
+                <div>
+                  <p className="text-white text-2xl font-bold">{total}</p>
+                  <p className="text-zinc-400 text-xs mt-0.5">emails processed</p>
+                </div>
+                <div className="w-px bg-zinc-700" />
+                <div>
+                  <p className="text-white text-2xl font-bold">0</p>
+                  <p className="text-zinc-400 text-xs mt-0.5">remaining</p>
+                </div>
+                <div className="w-px bg-zinc-700" />
+                <div>
+                  <p className="text-white text-2xl font-bold">~{total * 2}m</p>
+                  <p className="text-zinc-400 text-xs mt-0.5">saved</p>
+                </div>
+              </div>
               <button
                 onClick={() => { setFetched(false); setEmails([]); setProcessed(0); setDismissedIds(new Set()); }}
-                className="text-zinc-400 hover:text-zinc-200 text-xs mt-3 underline"
+                className="text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-6 py-2.5 rounded-lg transition-colors"
               >
-                Start over
+                Run Again
               </button>
             </div>
           )}
