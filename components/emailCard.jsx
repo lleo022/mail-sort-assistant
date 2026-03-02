@@ -33,6 +33,7 @@ export default function EmailCard({ email, onAction }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(null);
   const [done, setDone] = useState(false);
+  const [bodyExpanded, setBodyExpanded] = useState(false);
 
   const style = CATEGORY_STYLES[email.category] || CATEGORY_STYLES.fyi;
 
@@ -83,6 +84,32 @@ export default function EmailCard({ email, onAction }) {
       {/* Snippet */}
       <p className="text-zinc-300 text-xs leading-relaxed mb-1 line-clamp-2">{email.snippet}</p>
       <p className="text-zinc-400 text-xs italic mb-3">{email.reason}</p>
+
+      {/* Expandable full body */}
+      {hasBody && (
+        <div className="mb-3">
+          <button
+            onClick={() => setBodyExpanded(!bodyExpanded)}
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+          >
+            <span
+              className="inline-block transition-transform duration-200"
+              style={{ transform: bodyExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+            >
+              ▶
+            </span>
+            {bodyExpanded ? "Hide email" : "Show full email"}
+          </button>
+
+          {bodyExpanded && (
+            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg bg-black/30 border border-zinc-700/50 p-3">
+              <pre className="text-zinc-300 text-xs leading-relaxed whitespace-pre-wrap font-mono break-words">
+                {email.body}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Draft reply (for action_needed) */}
       {email.category === "action_needed" && (
